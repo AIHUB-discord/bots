@@ -10,11 +10,7 @@ path = os.path
 
 __version__ = '2.0'
 
-home_path= r'/home/container/'
-epath = os.getenv('HOME_PATH')
-
-if epath:
-    home_path = epath
+home_path = path.dirname()
 
 os.chdir(home_path)
 
