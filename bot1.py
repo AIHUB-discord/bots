@@ -160,8 +160,8 @@ def save_profile_picture(user):
 @client.event
 async def on_message(message):
     try:
-        print('Message:', message.content)
-        print('Attachments:', len(message.attachments))
+        # print('Message:', message.content)
+        # print('Attachments:', len(message.attachments))
         global is_script_going
         files_to_download = []
         if message.attachments:
