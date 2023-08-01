@@ -10,6 +10,14 @@ import logging
 __version__ = '2.0'
 
 home_path = os.getcwd()
+tmp_path = path.join(home_path, "tmp/")
+
+
+acceptable_audio_files = (".mp3", ".wav", ".flac", ".ogg", ".m4a")
+
+# create data folder if it doesn't exist
+if path.exists(tmp_path) == False:
+    os.mkdir(tmp_path)
 
 os.chdir(home_path)
 
@@ -32,7 +40,7 @@ intents.guilds = True  # Enable guild events
 client = discord.Client(intents=intents)
 
 
-def create_image_with_text(text, output= path.join(home_path,'output.png')):
+def create_image_with_text(text, output= path.join(home_path, 'output.png')):
     try:
         font_path = path.join(home_path, r'framd.ttf')
         BG_COLOR = (88, 101, 243)  # discord purple color
@@ -56,10 +64,9 @@ def create_image_with_text(text, output= path.join(home_path,'output.png')):
         logger.error(f"Error in create_image_with_text: {e}")
 
 
-def convert_audio_to_video(audio_input, output='output.mp4'):
+def convert_audio_to_video(audio_input, filename, unique_id, output='output.mp4'):
     try:
-        filename = os.path.basename(audio_input.replace('./', ''))
-        create_image_with_text(filename)
+        create_image_with_text(filename, path.join(tmp_path, f'{unique_id}.png'))
         audioclip = AudioFileClip(audio_input)
         imgclip = ImageClip('output.png')
         imgclip = imgclip.set_duration(audioclip.duration)
@@ -148,7 +155,7 @@ def save_profile_picture(user):
         pfp_url = user.avatar.url
         response = requests.get(pfp_url)
         if response.status_code == 200:
-            with open(path.co(home_path,'./pfp.png'), 'wb') as f:
+            with open(path.join(tmp_path,'pfp.png'), 'wb') as f:
                 f.write(response.content)
             print("Profile picture saved as pfp.png")
         else:
@@ -157,7 +164,8 @@ def save_profile_picture(user):
         logger.error(f"Error in save_profile_picture: {e}")
 
 @client.event
-async def on_message(message):
+async def on_message(message: discord.message):
+    uniqueId = str(message.channel.id) + str(message.id) + str(message.author.id)
     try:
         # print('Message:', message.content)
         # print('Attachments:', len(message.attachments))
@@ -171,19 +179,25 @@ async def on_message(message):
         if not is_script_going:
             is_script_going = True
             for file in files_to_download:
-                if isinstance(file, str) or file.filename.lower().endswith((".mp3", ".wav", ".flac", ".ogg", ".m4a")):
-                    audio_file_path = await download_file(file)
-                    await convert_and_send_video(audio_file_path, message)
+                if isinstance(file, str) or file.filename.lower().endswith(acceptable_audio_files):
+                    audio_file_path = await download_file(file, path.join(tmp_path, f'{uniqueId}.{file.filename.split(".")[-1]}'))
+                    await convert_and_send_video(audio_file_path, file.filename, uniqueId, message)
             is_script_going = False
     except Exception as e:
         logger.error(f"Error in on_message: {e}")
 
 def get_audio_urls(content):
-    return [word for word in content.split() if any(ext in word.lower() for ext in (".mp3", ".wav", ".flac", ".ogg", ".m4a"))]
+    return [word for word in content.split() if any(ext in word.lower() for ext in acceptable_audio_files)]
 
-async def download_file(file):
+async def download_file(file, customName):
     try:
-        file_path = f"./{file.filename}" if isinstance(file, discord.Attachment) else "./audio_file.mp3"
+        file_name = file.filename if isinstance(file, discord.Attachment) else "audio_file.mp3"
+        
+        if customName:
+            file_name = customName
+            
+        file_path = path.join(tmp_path, file_name)
+
         print(f"Downloading: {file.filename if isinstance(file, discord.Attachment) else file}")
         url = file.url if isinstance(file, discord.Attachment) else file
         with open(file_path, 'wb') as f:
@@ -199,11 +213,11 @@ async def download_file(file):
     except Exception as e:
         logger.error(f"Error in download_file: {e}")
 
-async def convert_and_send_video(audio_file_path, message):
+async def convert_and_send_video(audio_file_path, file_name, unique_id, message):
     try:
-        video_file_path = path.join(home_path, 'output.mp4')
+        video_file_path = path.join(tmp_path, f'{unique_id}.mp4')
 
-        convert_audio_to_video(audio_file_path, video_file_path)
+        convert_audio_to_video(audio_file_path, file_name, unique_id, video_file_path)
         print("Uploading video...")
         await message.channel.send(file=discord.File(video_file_path), reference=message)
         print("Upload completed.")
