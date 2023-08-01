@@ -1,0 +1,1 @@
+always has to start with `discord-bot-` and ends with `.service`
