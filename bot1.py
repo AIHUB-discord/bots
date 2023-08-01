@@ -1,12 +1,11 @@
 import os
+from os import path
 import discord
 import requests
 from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
 from moviepy.editor import AudioFileClip, ImageClip
 import logging
-
-path = os.path
 
 __version__ = '2.0'
 
@@ -33,11 +32,11 @@ intents.guilds = True  # Enable guild events
 client = discord.Client(intents=intents)
 
 
-def create_image_with_text(text, output='output.png'):
+def create_image_with_text(text, output= path.join(home_path,'output.png')):
     try:
-        font_path = path.join(home_path, r'./framd.ttf')
+        font_path = path.join(home_path, r'framd.ttf')
         BG_COLOR = (88, 101, 243)  # discord purple color
-        IMG_DIMENSIONS = (200, 90)
+        IMG_DIMENSIONS = (260, 60)
 
         font_size = 42 - len(text)
         if font_size < 10:
@@ -149,7 +148,7 @@ def save_profile_picture(user):
         pfp_url = user.avatar.url
         response = requests.get(pfp_url)
         if response.status_code == 200:
-            with open(path.join(home_path,'./pfp.png'), 'wb') as f:
+            with open(path.co(home_path,'./pfp.png'), 'wb') as f:
                 f.write(response.content)
             print("Profile picture saved as pfp.png")
         else:
@@ -202,7 +201,7 @@ async def download_file(file):
 
 async def convert_and_send_video(audio_file_path, message):
     try:
-        video_file_path = path.join(home_path, './output.mp4')
+        video_file_path = path.join(home_path, 'output.mp4')
 
         convert_audio_to_video(audio_file_path, video_file_path)
         print("Uploading video...")
