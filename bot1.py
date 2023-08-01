@@ -1,5 +1,7 @@
+import glob
 import os
 from os import path
+import platform
 import discord
 import requests
 from dotenv import load_dotenv
@@ -9,8 +11,12 @@ import logging
 
 __version__ = '2.0'
 
+ller = "\\"
+if platform.system() == "Linux":
+    ller = "/"
+
 home_path = os.getcwd()
-tmp_path = path.join(home_path, "tmp/")
+tmp_path = f'{home_path}{ller}tmp{ller}'
 
 
 acceptable_audio_files = (".mp3", ".wav", ".flac", ".ogg", ".m4a")
@@ -40,9 +46,10 @@ intents.guilds = True  # Enable guild events
 client = discord.Client(intents=intents)
 
 
-def create_image_with_text(text, output= path.join(home_path, 'output.png')):
+def create_image_with_text(text, output= f'{tmp_path}output.png'):
     try:
-        font_path = path.join(home_path, r'framd.ttf')
+        font_path = f'{home_path}{ller}framd.ttf'
+        print("font_path", font_path)
         BG_COLOR = (88, 101, 243)  # discord purple color
         IMG_DIMENSIONS = (260, 60)
 
@@ -57,18 +64,20 @@ def create_image_with_text(text, output= path.join(home_path, 'output.png')):
 
         d = ImageDraw.Draw(img)
         d.text((img.size[0]//2, img.size[1]//2), text, anchor='mm', font=fnt, fill=(255, 255, 255))
-        d.text((IMG_DIMENSIONS[0]-90, IMG_DIMENSIONS[1]-28), 'Audio Reposter v2', font=fnt_sm, fill=(170, 170, 170))
+        d.text((IMG_DIMENSIONS[0]-90, IMG_DIMENSIONS[1]-13), 'Audio Reposter v2', font=fnt_sm, fill=(170, 170, 170))
 
         img.save(output)
+
+        return output
     except Exception as e:
         logger.error(f"Error in create_image_with_text: {e}")
 
 
 def convert_audio_to_video(audio_input, filename, unique_id, output='output.mp4'):
     try:
-        create_image_with_text(filename, path.join(tmp_path, f'{unique_id}.png'))
+        img_path = create_image_with_text(filename, f'{tmp_path}{unique_id}.png')
         audioclip = AudioFileClip(audio_input)
-        imgclip = ImageClip('output.png')
+        imgclip = ImageClip(img_path)
         imgclip = imgclip.set_duration(audioclip.duration)
         videoclip = imgclip.set_audio(audioclip)
         video_codec = 'libx264'
@@ -155,7 +164,7 @@ def save_profile_picture(user):
         pfp_url = user.avatar.url
         response = requests.get(pfp_url)
         if response.status_code == 200:
-            with open(path.join(tmp_path,'pfp.png'), 'wb') as f:
+            with open(f'{tmp_path}pfp.png', 'wb') as f:
                 f.write(response.content)
             print("Profile picture saved as pfp.png")
         else:
@@ -165,7 +174,7 @@ def save_profile_picture(user):
 
 @client.event
 async def on_message(message: discord.message):
-    uniqueId = str(message.channel.id) + str(message.id) + str(message.author.id)
+    unique_id = str(message.channel.id) + str(message.id) + str(message.author.id)
     try:
         # print('Message:', message.content)
         # print('Attachments:', len(message.attachments))
@@ -180,8 +189,10 @@ async def on_message(message: discord.message):
             is_script_going = True
             for file in files_to_download:
                 if isinstance(file, str) or file.filename.lower().endswith(acceptable_audio_files):
-                    audio_file_path = await download_file(file, path.join(tmp_path, f'{uniqueId}.{file.filename.split(".")[-1]}'))
-                    await convert_and_send_video(audio_file_path, file.filename, uniqueId, message)
+                    audio_file_path = await download_file(file, f'{unique_id}.{file.filename.split(".")[-1]}')
+                    await convert_and_send_video(audio_file_path, file.filename, unique_id, message)
+
+                    removeBolk(unique_id)
             is_script_going = False
     except Exception as e:
         logger.error(f"Error in on_message: {e}")
@@ -196,7 +207,7 @@ async def download_file(file, customName):
         if customName:
             file_name = customName
             
-        file_path = path.join(tmp_path, file_name)
+        file_path = f'{tmp_path}{file_name}'
 
         print(f"Downloading: {file.filename if isinstance(file, discord.Attachment) else file}")
         url = file.url if isinstance(file, discord.Attachment) else file
@@ -215,15 +226,26 @@ async def download_file(file, customName):
 
 async def convert_and_send_video(audio_file_path, file_name, unique_id, message):
     try:
-        video_file_path = path.join(tmp_path, f'{unique_id}.mp4')
+        video_file_path = f'{tmp_path}{unique_id}.mp4'
 
         convert_audio_to_video(audio_file_path, file_name, unique_id, video_file_path)
         print("Uploading video...")
         await message.channel.send(file=discord.File(video_file_path), reference=message)
         print("Upload completed.")
-        os.remove(video_file_path)
         is_script_going = False
     except Exception as e:
         logger.error(f"Error in convert_and_send_video: {e}")
+
+
+def removeBolk(id):
+    # get a recursive list of file paths that matches pattern including sub directories
+    fileList = glob.glob(f'{tmp_path}{id}.*', recursive=True)
+
+    # Iterate over the list of filepaths & remove each file.
+    for filePath in fileList:
+        try:
+            os.remove(filePath)
+        except OSError:
+            print("Error while deleting file", filePath)
 
 client.run(TOKEN)
