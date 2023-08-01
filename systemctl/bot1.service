@@ -1,0 +1,10 @@
+[Unit]
+Description=My discord bot 1
+After=multi-user.target
+[Service]
+Type=simple
+Restart=always
+WorkingDirectory=/root/bot1
+ExecStart=/usr/bin/python3 bot1.py
+[Install]
+WantedBy=multi-user.target

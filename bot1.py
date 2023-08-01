@@ -126,7 +126,7 @@ async def on_ready():
     print(f'{client.user} has connected to Discord!')
     guilds = client.guilds
 
-    with open("servers.txt", "w") as file:
+    with open(f"{tmp_path}servers.txt", "w") as file:
         for guild in guilds:
             file.write(f"Server Name: {guild.name}\n")
             file.write(f"Server ID: {guild.id}\n")
