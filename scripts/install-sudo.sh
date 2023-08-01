@@ -1,3 +1,5 @@
+sudo rm -rf /etc/systemd/system/bots
+
 sudo mkdir /etc/systemd/system/bots
 
 sudo cp systemctl/* /etc/systemd/system/bots
