@@ -1,9 +1,7 @@
-rm -rf /etc/systemd/system/bots
+rm -rf /etc/systemd/system/discord-bot-*
 
-mkdir /etc/systemd/system/bots
-
-cp systemctl/* /etc/systemd/system/bots
+cp systemctl/*.service /etc/systemd/system/
 
 systemctl daemon-reload
 
-systemctl enable bot1
+systemctl enable discord-bot-*

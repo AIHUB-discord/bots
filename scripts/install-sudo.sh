@@ -4,4 +4,4 @@ sudo cp systemctl/*.service /etc/systemd/system/
 
 sudo systemctl daemon-reload
 
-sudo systemctl enable 
+sudo systemctl enable discord-bot-*
