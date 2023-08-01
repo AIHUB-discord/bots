@@ -81,7 +81,7 @@ def convert_audio_to_video(audio_input, filename, unique_id, output='output.mp4'
         videoclip = imgclip.set_audio(audioclip)
         video_codec = 'libx264'
         audio_codec = 'aac'
-        audio_bitrate = '192k'
+        audio_bitrate = '256k'
         video_bitrate = '100k'
         videoclip.write_videofile(
             output,
