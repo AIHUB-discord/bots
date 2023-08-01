@@ -203,7 +203,6 @@ async def on_message(message: discord.message):
             
         if not is_script_going:
             is_script_going = True
-            loop = asyncio.get_event_loop()
             await aio_all([handle_file(file, message) for file in files_to_download])
             is_script_going = False
     except Exception as e:
