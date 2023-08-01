@@ -10,7 +10,7 @@ path = os.path
 
 __version__ = '2.0'
 
-home_path = path.dirname()
+home_path = os.getcwd()
 
 os.chdir(home_path)
 
