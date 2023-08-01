@@ -1,3 +1,4 @@
+import asyncio
 import glob
 import os
 from os import path
@@ -8,7 +9,6 @@ from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
 from moviepy.editor import AudioFileClip, ImageClip
 import logging
-
 __version__ = '2.0'
 
 ller = "\\"
@@ -47,7 +47,7 @@ client = discord.Client(intents=intents)
 
 def create_image_with_text(text, output= f'{tmp_path}output.png'):
     try:
-        font_path = f'{home_path}{ller}framd.ttf'
+        font_path = f'{home_path}{ller}fonts{ller}framd.ttf'
         print("font_path", font_path)
         BG_COLOR = (88, 101, 243)  # discord purple color
         IMG_DIMENSIONS = (260, 60)
@@ -171,9 +171,26 @@ def save_profile_picture(user):
     except Exception as e:
         logger.error(f"Error in save_profile_picture: {e}")
 
+
+
+async def aio_all(seq):
+  for f in asyncio.as_completed(seq):
+    await f
+
+async def handle_file(file, message: discord.message):
+    unique_id = f'{file.filename}_{str(message.channel.id)}_{str(message.id)}_{str(message.author.id)}'
+    try:
+        if isinstance(file, str) or file.filename.lower().endswith(acceptable_audio_files):
+            audio_file_path = await download_file(file, f'{unique_id}.{file.filename.split(".")[-1]}')
+            await convert_and_send_video(audio_file_path, file.filename, unique_id, message)
+
+            removeBolk(unique_id)
+    except Exception as e:
+        logger.error(f"Error in handle_file: {e}")
+
+
 @client.event
 async def on_message(message: discord.message):
-    unique_id = str(message.channel.id) + str(message.id) + str(message.author.id)
     try:
         # print('Message:', message.content)
         # print('Attachments:', len(message.attachments))
@@ -186,12 +203,8 @@ async def on_message(message: discord.message):
             
         if not is_script_going:
             is_script_going = True
-            for file in files_to_download:
-                if isinstance(file, str) or file.filename.lower().endswith(acceptable_audio_files):
-                    audio_file_path = await download_file(file, f'{unique_id}.{file.filename.split(".")[-1]}')
-                    await convert_and_send_video(audio_file_path, file.filename, unique_id, message)
-
-                    removeBolk(unique_id)
+            loop = asyncio.get_event_loop()
+            await aio_all([handle_file(file, message) for file in files_to_download])
             is_script_going = False
     except Exception as e:
         logger.error(f"Error in on_message: {e}")
