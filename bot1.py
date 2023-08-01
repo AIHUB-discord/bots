@@ -18,7 +18,6 @@ if platform.system() == "Linux":
 home_path = os.getcwd()
 tmp_path = f'{home_path}{ller}tmp{ller}'
 
-
 acceptable_audio_files = (".mp3", ".wav", ".flac", ".ogg", ".m4a")
 
 # create data folder if it doesn't exist
