@@ -9,6 +9,12 @@ from dotenv import load_dotenv
 from PIL import Image, ImageDraw, ImageFont
 from moviepy.editor import AudioFileClip, ImageClip
 import logging
+import re
+from optionshandler import options
+
+
+print(options.allowed)
+
 __version__ = '2.0'
 
 ller = "\\"
@@ -17,6 +23,9 @@ if platform.system() == "Linux":
 
 home_path = os.getcwd()
 tmp_path = f'{home_path}{ller}tmp{ller}'
+
+
+prefix = "@-@"
 
 acceptable_audio_files = (".mp3", ".wav", ".flac", ".ogg", ".m4a")
 
@@ -178,7 +187,7 @@ async def aio_all(seq):
     await f
 
 async def handle_file(file, message: discord.message):
-    unique_id = f'{file.filename}_{str(message.channel.id)}_{str(message.id)}_{str(message.author.id)}'
+    unique_id = f'{file.filename}_{str(message.guild.id)}_{str(message.channel.id)}_{str(message.id)}_{str(message.author.id)}'
     try:
         if isinstance(file, str) or file.filename.lower().endswith(acceptable_audio_files):
             audio_file_path = await download_file(file, f'{unique_id}.{file.filename.split(".")[-1]}')
@@ -189,11 +198,43 @@ async def handle_file(file, message: discord.message):
         logger.error(f"Error in handle_file: {e}")
 
 
+def has_role(message: discord.message.Message, role_id: str):
+    does = False
+    for rl in message.author.roles:
+        if str(rl.id) == role_id:
+            does= True
+    return does
+        
+
+
 @client.event
-async def on_message(message: discord.message):
+async def on_message(message: discord.message.Message, timesIn=0):
     try:
+        full_id = f'{str(message.guild.id)}_{str(message.channel.id)}_{str(message.author.id)}'
+        
         # print('Message:', message.content)
         # print('Attachments:', len(message.attachments))
+        # if the user uses command to generate 
+        if message.content.startswith(f'{prefix}') and message.reference.resolved and timesIn < 3:
+            do_it = False
+            if len(options.allowed) == 0:
+                do_it = True
+            else:
+                for alm in options.allowed:
+                    rej, role_id = alm.split("__")
+                    if len(rej) > 0 and len(role_id) > 0 and re.match(re.escape(rej), full_id) and has_role(message.author.roles, role_id):
+                        do_it = True
+                    elif len(rej) > 0 and re.match(re.escape(rej), full_id):
+                        do_it = True
+                    elif len(role_id) > 0 and has_role(message, role_id) :
+                        do_it = True
+
+            if do_it:
+                await on_message(message.reference.resolved, timesIn = timesIn + 1)
+            return
+
+        if timesIn==0:
+            return
         global is_script_going
         files_to_download = []
         if message.attachments:
