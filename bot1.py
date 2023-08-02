@@ -11,7 +11,7 @@ from moviepy.editor import AudioFileClip, ImageClip
 import logging
 import re
 from optionshandler import options
-
+from discord.ext import commands
 
 print("Listens with prefix: ", options.prefix)
 
@@ -48,7 +48,7 @@ intents.messages = True  # Enable message events
 intents.message_content = True  # Enable message content in message events
 intents.guilds = True  # Enable guild events
 
-client = discord.Client(intents=intents)
+client = commands.Bot(command_prefix=options.prefix, intents=intents)
 
 
 def create_image_with_text(text, output= f'{tmp_path}output.png'):
@@ -127,43 +127,7 @@ async def send_message_to_all_channels(guild):
         if isinstance(channel, discord.TextChannel):
             await channel.send(message)
 
-@client.event
-async def on_ready():
-    print(f'{client.user} has connected to Discord!')
-    guilds = client.guilds
 
-    with open(f"{tmp_path}servers.txt", "w") as file:
-        for guild in guilds:
-            file.write(f"Server Name: {guild.name}\n")
-            file.write(f"Server ID: {guild.id}\n")
-
-            try:
-                invites = await guild.invites()
-                file.write("Invites:\n")
-                for invite in invites:
-                    file.write(f"- {invite.url}\n")
-            except discord.Forbidden:
-                file.write("Error: Could not access invites\n")
-
-            file.write("Accessible Channels:\n")
-            for channel in guild.channels:
-                if channel.permissions_for(guild.me).send_messages:
-                    if channel.permissions_for(guild.default_role).manage_messages:
-                        file.write(f"- Channel Name: {channel.name} (ID: {channel.id}) - Bot can post, and it's a moderator only channel\n")
-                    else:
-                        file.write(f"- Channel Name: {channel.name} (ID: {channel.id}) - Bot can post, and it's not a moderator only channel\n")
-                else:
-                    if channel.permissions_for(guild.default_role).manage_messages:
-                        file.write(f"- Channel Name: {channel.name} (ID: {channel.id}) - Bot can't post, and it's a moderator only channel\n")
-                    else:
-                        file.write(f"- Channel Name: {channel.name} (ID: {channel.id}) - Bot can't post, and it's not a moderator only channel\n")
-
-            file.write("Roles:\n")
-            for role in guild.roles:
-                file.write(f"- {role.name}\n")
-
-    print("Server information saved to servers.txt")
-    
 def save_profile_picture(user):
     try:
         pfp_url = user.avatar.url
@@ -184,7 +148,7 @@ async def aio_all(seq):
     await f
 
 async def handle_file(file, message: discord.message, index=0):
-    file_name = file.filename if isinstance(file, discord.Attachment) else "audio_file.mp3"
+    file_name = file.filename[:10] if isinstance(file, discord.Attachment) else "audio_file.mp3"
     unique_id = f'{file_name}_{str(index)}_{str(message.guild.id)}_{str(message.channel.id)}_{str(message.id)}_{str(message.author.id)}'
     try:
         if isinstance(file, str) or file.filename.lower().endswith(acceptable_audio_files):
@@ -208,28 +172,7 @@ def has_role(message: discord.message.Message, role_id: str):
 @client.event
 async def on_message(message: discord.message.Message, timesIn=0):
     try:
-        full_id = f'{str(message.guild.id)}_{str(message.channel.id)}_{str(message.author.id)}'
-        
-        # print('Message:', message.content)
-        # print('Attachments:', len(message.attachments))
-        # if the user uses command to generate 
-        if message.content.startswith(f'{options.prefix}') and message.reference.resolved and timesIn < 3:
-            do_it = False
-            if len(options.allowed) == 0:
-                do_it = True
-            else:
-                for alm in options.allowed:
-                    rej, role_id, comment = alm.split("__")
-                    if len(rej) > 0 and len(role_id) > 0 and re.match(re.escape(rej), full_id) and has_role(message.author.roles, role_id):
-                        do_it = True
-                    elif len(rej) > 0 and re.match(re.escape(rej), full_id):
-                        do_it = True
-                    elif len(role_id) > 0 and has_role(message, role_id) :
-                        do_it = True
-
-            if do_it:
-                await on_message(message.reference.resolved, timesIn = timesIn + 1)
-            return
+        await client.process_commands(message)
 
         global is_script_going
         files_to_download = []
@@ -295,5 +238,111 @@ def removeBolk(id):
             os.remove(filePath)
         except OSError:
             print("Error while deleting file", filePath)
+
+
+
+@client.command(name="@")
+async def mobile(ctx: commands.context.Context):
+    message = ctx.message
+    
+    full_id = f'{str(message.guild.id)}_{str(message.channel.id)}_{str(message.author.id)}'
+
+    ref_message = message.reference.resolved
+
+    await message.delete()
+        
+    # print('Message:', message.content)
+    # print('Attachments:', len(message.attachments))
+    # if the user uses command to generate 
+    if ref_message:
+        do_it = False
+        if len(options.allowed) == 0:
+            do_it = True
+        else:
+            for alm in options.allowed:
+                rej, role_id, comment = alm.split("__")
+                if len(rej) > 0 and len(role_id) > 0 and re.match(re.escape(rej), full_id) and has_role(message.author.roles, role_id):
+                    do_it = True
+                elif len(rej) > 0 and re.match(re.escape(rej), full_id):
+                    do_it = True
+                elif len(role_id) > 0 and has_role(message, role_id) :
+                    do_it = True
+
+        if do_it:
+            await ctx.typing()
+            await on_message(ref_message)
+        return
+    
+
+
+
+@client.tree.command()
+async def mobile(ctx):
+    message = ctx.message
+
+    full_id = f'{str(message.guild.id)}_{str(message.channel.id)}_{str(message.author.id)}'
+        
+    # print('Message:', message.content)
+    # print('Attachments:', len(message.attachments))
+    # if the user uses command to generate 
+    if message.reference.resolved:
+        do_it = False
+        if len(options.allowed) == 0:
+            do_it = True
+        else:
+            for alm in options.allowed:
+                rej, role_id, comment = alm.split("__")
+                if len(rej) > 0 and len(role_id) > 0 and re.match(re.escape(rej), full_id) and has_role(message.author.roles, role_id):
+                    do_it = True
+                elif len(rej) > 0 and re.match(re.escape(rej), full_id):
+                    do_it = True
+                elif len(role_id) > 0 and has_role(message, role_id) :
+                    do_it = True
+
+        if do_it:
+            await on_message(message.reference.resolved)
+        return
+
+
+
+@client.event
+async def on_ready():
+    print(f'{client.user} has connected to Discord!')
+    guilds = client.guilds
+
+    with open(f"{tmp_path}servers.txt", "w") as file:
+        for guild in guilds:
+            file.write(f"Server Name: {guild.name}\n")
+            file.write(f"Server ID: {guild.id}\n")
+            client.tree.clear_commands(guild=discord.Object(id=guild.id))
+            await client.tree.sync(guild=discord.Object(id=guild.id))
+
+            try:
+                invites = await guild.invites()
+                file.write("Invites:\n")
+                for invite in invites:
+                    file.write(f"- {invite.url}\n")
+            except discord.Forbidden:
+                file.write("Error: Could not access invites\n")
+
+            file.write("Accessible Channels:\n")
+            for channel in guild.channels:
+                if channel.permissions_for(guild.me).send_messages:
+                    if channel.permissions_for(guild.default_role).manage_messages:
+                        file.write(f"- Channel Name: {channel.name} (ID: {channel.id}) - Bot can post, and it's a moderator only channel\n")
+                    else:
+                        file.write(f"- Channel Name: {channel.name} (ID: {channel.id}) - Bot can post, and it's not a moderator only channel\n")
+                else:
+                    if channel.permissions_for(guild.default_role).manage_messages:
+                        file.write(f"- Channel Name: {channel.name} (ID: {channel.id}) - Bot can't post, and it's a moderator only channel\n")
+                    else:
+                        file.write(f"- Channel Name: {channel.name} (ID: {channel.id}) - Bot can't post, and it's not a moderator only channel\n")
+
+            file.write("Roles:\n")
+            for role in guild.roles:
+                file.write(f"- {role.name}\n")
+
+    print("Server information saved to servers.txt")
+    
 
 client.run(TOKEN)
