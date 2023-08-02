@@ -189,7 +189,7 @@ async def handle_file(file, message: discord.message, index=0):
     try:
         if isinstance(file, str) or file.filename.lower().endswith(acceptable_audio_files):
             audio_file_path = await download_file(file, f'{unique_id}.{file_name.split(".")[-1]}')
-            await convert_and_send_video(audio_file_path, file.filename, unique_id, message)
+            await convert_and_send_video(audio_file_path, file_name, unique_id, message)
 
             removeBolk(unique_id)
     except Exception as e:
