@@ -148,11 +148,11 @@ async def aio_all(seq):
     await f
 
 async def handle_file(file, message: discord.message, index=0):
-    file_name = file.filename[:10] if isinstance(file, discord.Attachment) else "audio_file.mp3"
-    unique_id = f'{file_name}_{str(index)}_{str(message.guild.id)}_{str(message.channel.id)}_{str(message.id)}_{str(message.author.id)}'
+    file_name = file.filename if isinstance(file, discord.Attachment) else "audio_file.mp3"
+    unique_id = f'{str(index)}_{str(message.guild.id)}_{str(message.channel.id)}_{str(message.id)}_{str(message.author.id)}'
     try:
         if isinstance(file, str) or file.filename.lower().endswith(acceptable_audio_files):
-            audio_file_path = await download_file(file, f'{unique_id}.{file_name.split(".")[-1]}')
+            audio_file_path = await download_file(file, f'{unique_id}.{file_name[:10].split(".")[-1]}')
             await convert_and_send_video(audio_file_path, file_name, unique_id, message)
 
             removeBolk(unique_id)
