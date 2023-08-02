@@ -12,6 +12,19 @@ import logging
 import re
 from optionshandler import options
 from discord.ext import commands
+import functools
+import typing
+import asyncio
+
+
+def to_thread(func: typing.Callable) -> typing.Coroutine:
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs):
+        def funcy():
+            client.loop.create_task(func(*args,**kwargs))
+        return await asyncio.to_thread(funcy)
+    return wrapper
+
 
 print("Listens with prefix: ", options.prefix)
 
@@ -51,10 +64,9 @@ intents.guilds = True  # Enable guild events
 client = commands.Bot(command_prefix=options.prefix, intents=intents)
 
 
-def create_image_with_text(text, output= f'{tmp_path}output.png'):
+async def create_image_with_text(text, output= f'{tmp_path}output.png'):
     try:
         font_path = f'{home_path}{ller}fonts{ller}framd.ttf'
-        print("font_path", font_path)
         BG_COLOR = (88, 101, 243)  # discord purple color
         IMG_DIMENSIONS = (260, 60)
 
@@ -78,9 +90,9 @@ def create_image_with_text(text, output= f'{tmp_path}output.png'):
         logger.error(f"Error in create_image_with_text: {e}")
 
 
-def convert_audio_to_video(audio_input, filename, unique_id, output='output.mp4'):
+async def convert_audio_to_video(audio_input, filename, unique_id, output='output.mp4'):
     try:
-        img_path = create_image_with_text(filename, f'{tmp_path}{unique_id}.png')
+        img_path = await create_image_with_text(filename, f'{tmp_path}{unique_id}.png')
         audioclip = AudioFileClip(audio_input)
         imgclip = ImageClip(img_path)
         imgclip = imgclip.set_duration(audioclip.duration)
@@ -95,6 +107,7 @@ def convert_audio_to_video(audio_input, filename, unique_id, output='output.mp4'
             audio_codec=audio_codec,
             audio_bitrate=audio_bitrate,
             bitrate=video_bitrate,
+            logger=None,
             fps=1
         )
         videoclip.close()
@@ -147,15 +160,16 @@ async def aio_all(seq):
   for f in asyncio.as_completed(seq):
     await f
 
-async def handle_file(file, message: discord.message, index=0):
+@to_thread
+async def handle_file(file, message: discord.message.Message, index=0):
     file_name = file.filename if isinstance(file, discord.Attachment) else "audio_file.mp3"
     unique_id = f'{str(index)}_{str(message.guild.id)}_{str(message.channel.id)}_{str(message.id)}_{str(message.author.id)}'
     try:
         if isinstance(file, str) or file.filename.lower().endswith(acceptable_audio_files):
-            audio_file_path = await download_file(file, f'{unique_id}.{file_name[:10].split(".")[-1]}')
-            await convert_and_send_video(audio_file_path, file_name, unique_id, message)
-
-            removeBolk(unique_id)
+            async with message.channel.typing():
+                audio_file_path = await download_file(file, f'{unique_id}.{file_name[:10].split(".")[-1]}')
+                await convert_and_send_video(audio_file_path, file_name, unique_id, message)
+                await removeBolk(unique_id)
     except Exception as e:
         logger.error(f"Error in handle_file: {e}")
 
@@ -171,9 +185,9 @@ def has_role(message: discord.message.Message, role_id: str):
 
 @client.event
 async def on_message(message: discord.message.Message, timesIn=0):
+    global _task
     try:
         await client.process_commands(message)
-
         global is_script_going
         files_to_download = []
         if message.attachments:
@@ -183,7 +197,7 @@ async def on_message(message: discord.message.Message, timesIn=0):
             
         if not is_script_going:
             is_script_going = True
-            await aio_all([handle_file(file, message, inx) for inx, file in enumerate(files_to_download)])
+            asyncio.create_task(aio_all([handle_file(file, message, inx) for inx, file in enumerate(files_to_download)]))
             is_script_going = False
     except Exception as e:
         logger.error(f"Error in on_message: {e}")
@@ -200,7 +214,7 @@ async def download_file(file, customName):
             
         file_path = f'{tmp_path}{file_name}'
 
-        print(f"Downloading: {file.filename if isinstance(file, discord.Attachment) else file}")
+        # print(f"Downloading: {file.filename if isinstance(file, discord.Attachment) else file}")
         url = file.url if isinstance(file, discord.Attachment) else file
         with open(file_path, 'wb') as f:
             response = requests.get(url, stream=True)
@@ -210,7 +224,7 @@ async def download_file(file, customName):
             for data in response.iter_content(block_size):
                 downloaded_size += len(data)
                 f.write(data)
-        print("Download completed.")
+        # print("Download completed.")
         return file_path
     except Exception as e:
         logger.error(f"Error in download_file: {e}")
@@ -219,16 +233,16 @@ async def convert_and_send_video(audio_file_path, file_name, unique_id, message)
     try:
         video_file_path = f'{tmp_path}{unique_id}.mp4'
 
-        convert_audio_to_video(audio_file_path, file_name, unique_id, video_file_path)
-        print("Uploading video...")
+        await convert_audio_to_video(audio_file_path, file_name, unique_id, video_file_path)
+        # print("Uploading video...")
         await message.channel.send(file=discord.File(video_file_path), reference=message)
-        print("Upload completed.")
+        print("Upload completed.", unique_id, ".mp4" )
         is_script_going = False
     except Exception as e:
         logger.error(f"Error in convert_and_send_video: {e}")
 
 
-def removeBolk(id):
+async def removeBolk(id):
     # get a recursive list of file paths that matches pattern including sub directories
     fileList = glob.glob(f'{tmp_path}{id}.*', recursive=True)
 
