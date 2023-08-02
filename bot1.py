@@ -13,7 +13,7 @@ import re
 from optionshandler import options
 
 
-print(options.allowed)
+print("Listens with prefix: ", options.prefix)
 
 __version__ = '2.0'
 
@@ -23,9 +23,6 @@ if platform.system() == "Linux":
 
 home_path = os.getcwd()
 tmp_path = f'{home_path}{ller}tmp{ller}'
-
-
-prefix = "@-@"
 
 acceptable_audio_files = (".mp3", ".wav", ".flac", ".ogg", ".m4a")
 
@@ -215,7 +212,7 @@ async def on_message(message: discord.message.Message, timesIn=0):
         # print('Message:', message.content)
         # print('Attachments:', len(message.attachments))
         # if the user uses command to generate 
-        if message.content.startswith(f'{prefix}') and message.reference.resolved and timesIn < 3:
+        if message.content.startswith(f'{options.prefix}') and message.reference.resolved and timesIn < 3:
             do_it = False
             if len(options.allowed) == 0:
                 do_it = True
