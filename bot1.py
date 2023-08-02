@@ -231,8 +231,6 @@ async def on_message(message: discord.message.Message, timesIn=0):
                 await on_message(message.reference.resolved, timesIn = timesIn + 1)
             return
 
-        if timesIn==0:
-            return
         global is_script_going
         files_to_download = []
         if message.attachments:
