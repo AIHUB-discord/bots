@@ -183,11 +183,12 @@ async def aio_all(seq):
   for f in asyncio.as_completed(seq):
     await f
 
-async def handle_file(file, message: discord.message):
-    unique_id = f'{file.filename}_{str(message.guild.id)}_{str(message.channel.id)}_{str(message.id)}_{str(message.author.id)}'
+async def handle_file(file, message: discord.message, index=0):
+    file_name = file.filename if isinstance(file, discord.Attachment) else "audio_file.mp3"
+    unique_id = f'{file_name}_{str(index)}_{str(message.guild.id)}_{str(message.channel.id)}_{str(message.id)}_{str(message.author.id)}'
     try:
         if isinstance(file, str) or file.filename.lower().endswith(acceptable_audio_files):
-            audio_file_path = await download_file(file, f'{unique_id}.{file.filename.split(".")[-1]}')
+            audio_file_path = await download_file(file, f'{unique_id}.{file_name.split(".")[-1]}')
             await convert_and_send_video(audio_file_path, file.filename, unique_id, message)
 
             removeBolk(unique_id)
@@ -241,7 +242,7 @@ async def on_message(message: discord.message.Message, timesIn=0):
             
         if not is_script_going:
             is_script_going = True
-            await aio_all([handle_file(file, message) for file in files_to_download])
+            await aio_all([handle_file(file, message, inx) for inx, file in enumerate(files_to_download)])
             is_script_going = False
     except Exception as e:
         logger.error(f"Error in on_message: {e}")
