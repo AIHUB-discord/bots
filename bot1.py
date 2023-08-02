@@ -219,7 +219,7 @@ async def on_message(message: discord.message.Message, timesIn=0):
                 do_it = True
             else:
                 for alm in options.allowed:
-                    rej, role_id = alm.split("__")
+                    rej, role_id, comment = alm.split("__")
                     if len(rej) > 0 and len(role_id) > 0 and re.match(re.escape(rej), full_id) and has_role(message.author.roles, role_id):
                         do_it = True
                     elif len(rej) > 0 and re.match(re.escape(rej), full_id):
