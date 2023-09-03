@@ -320,7 +320,7 @@ async def help(ctx: commands.context.Context):
     await asyncio.sleep(1)
     sent_message = await sent_message.edit(content=f"sry bout dat")
     await asyncio.sleep(1)
-    sent_message = await sent_message.edit(content=f"# help:\n## {options.prefix}@ + reply:\n trigger me to repost the audio from the referenced message \n## {options.prefix}ping:\n tell you if i'm available \n## {options.prefix}h:\n aaaa.. to show this message again?")
+    sent_message = await sent_message.edit(content=f"# help:\n## {options.prefix}@ + reply:\n trigger me to repost the audio from the referenced message \n## {options.prefix}ping:\n tell you if i'm available \n## {options.prefix}!:\n aaaa.. to show this message again?")
    
 @client.command(name="ping")
 async def mobile(ctx: commands.context.Context):
