@@ -250,7 +250,7 @@ async def convert_and_send_video(audio_file_path, file_name, unique_id, message)
 
         await convert_audio_to_video(audio_file_path, file_name, unique_id, video_file_path)
         # print("Uploading video...")
-        await message.channel.send(file=discord.File(video_file_path), reference=message, content="(!testing!)")
+        await message.channel.send(file=discord.File(video_file_path), reference=message)
         print("Upload completed.", unique_id, ".mp4" )
     except Exception as e:
         logger.error(f"Error in convert_and_send_video: {e}")
