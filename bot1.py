@@ -12,18 +12,19 @@ import logging
 import re
 from optionshandler import options
 from discord.ext import commands
-import functools
-import typing
 import asyncio
 
 
-def to_thread(func: typing.Callable) -> typing.Coroutine:
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        def funcy():
-            client.loop.create_task(func(*args,**kwargs))
-        return await asyncio.to_thread(funcy)
-    return wrapper
+# maybe needed later for hyper threading (if the current model doesn't work)
+# import functools
+# import typing
+# def to_thread(func: typing.Callable) -> typing.Coroutine:
+#     @functools.wraps(func)
+#     async def wrapper(*args, **kwargs):
+#         def funcy():
+#             client.loop.create_task(func(*args,**kwargs))
+#         return await asyncio.to_thread(funcy)
+#     return wrapper
 
 
 print("Listens with prefix: ", options.prefix)
@@ -44,8 +45,6 @@ if path.exists(tmp_path) == False:
     os.mkdir(tmp_path)
 
 os.chdir(home_path)
-
-is_script_going = False
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -99,8 +98,8 @@ async def convert_audio_to_video(audio_input, filename, unique_id, output='outpu
         videoclip = imgclip.set_audio(audioclip)
         video_codec = 'libx264'
         audio_codec = 'aac'
-        audio_bitrate = '256k'
-        video_bitrate = '100k'
+        audio_bitrate = '384k'
+        video_bitrate = '128k'
         videoclip.write_videofile(
             output,
             codec=video_codec,
@@ -160,7 +159,7 @@ async def aio_all(seq):
   for f in asyncio.as_completed(seq):
     await f
 
-@to_thread
+# @to_thread
 async def handle_file(file, message: discord.message.Message, index=0):
     file_name = file.filename if isinstance(file, discord.Attachment) else "audio_file.mp3"
     unique_id = f'{str(index)}_{str(message.guild.id)}_{str(message.channel.id)}_{str(message.id)}_{str(message.author.id)}'
@@ -185,25 +184,41 @@ def has_role(message: discord.message.Message, role_id: str):
 
 @client.event
 async def on_message(message: discord.message.Message, timesIn=0):
-    global _task
     try:
+        if message.author.bot:
+            return
+        
         await client.process_commands(message)
-        global is_script_going
+
         files_to_download = []
-        if message.attachments:
+        if len(message.attachments) > 0:
             files_to_download = message.attachments
         elif message.content:
             files_to_download = get_audio_urls(message.content)
             
-        if not is_script_going:
-            is_script_going = True
-            asyncio.create_task(aio_all([handle_file(file, message, inx) for inx, file in enumerate(files_to_download)]))
-            is_script_going = False
+        if len(files_to_download) > 0:
+            asyncio.run_coroutine_threadsafe(aio_all([handle_file(file, message, inx) for inx, file in enumerate(files_to_download)]), client.loop)
     except Exception as e:
         logger.error(f"Error in on_message: {e}")
 
 def get_audio_urls(content):
-    return [word for word in content.split() if any(ext in word.lower() for ext in acceptable_audio_files)]
+    # Split the input string into words
+    words = content.split()
+    # List to store extracted URLs
+    urls = []
+
+    for word in words:
+        # Check if the word contains a URL-like pattern
+        match = re.match(r'^(https?://[^\s/$.?#]+(?:\.[^\s]*)?)(?:[.,]?[\s]|$)', word, re.IGNORECASE)
+        if match:
+            url = match.group(1)
+            # Check if the URL ends with "," or "."
+            if url.endswith((',', '.')):
+                url = url[:-1]  # Remove the trailing character
+            if url.lower().endswith(acceptable_audio_files):
+                urls.append(url)
+
+    return urls
 
 async def download_file(file, customName):
     try:
@@ -235,23 +250,25 @@ async def convert_and_send_video(audio_file_path, file_name, unique_id, message)
 
         await convert_audio_to_video(audio_file_path, file_name, unique_id, video_file_path)
         # print("Uploading video...")
-        await message.channel.send(file=discord.File(video_file_path), reference=message)
+        await message.channel.send(file=discord.File(video_file_path), reference=message, content="(!testing!)")
         print("Upload completed.", unique_id, ".mp4" )
-        is_script_going = False
     except Exception as e:
         logger.error(f"Error in convert_and_send_video: {e}")
 
 
 async def removeBolk(id):
-    # get a recursive list of file paths that matches pattern including sub directories
-    fileList = glob.glob(f'{tmp_path}{id}.*', recursive=True)
+    try:
+        # get a recursive list of file paths that matches pattern including sub directories
+        fileList = glob.glob(f'{tmp_path}{id}.*', recursive=True)
 
-    # Iterate over the list of filepaths & remove each file.
-    for filePath in fileList:
-        try:
-            os.remove(filePath)
-        except OSError:
-            print("Error while deleting file", filePath)
+        # Iterate over the list of filepaths & remove each file.
+        for filePath in fileList:
+            try:
+                os.remove(filePath)
+            except OSError:
+                print("Error while deleting file", filePath)
+    except Exception as e:
+        logger.error(f"Error in removeBolk: {e}")
 
 
 
@@ -261,9 +278,10 @@ async def mobile(ctx: commands.context.Context):
     
     full_id = f'{str(message.guild.id)}_{str(message.channel.id)}_{str(message.author.id)}'
 
+    if not message.reference:
+        return
+    
     ref_message = message.reference.resolved
-
-    await message.delete()
         
     # print('Message:', message.content)
     # print('Attachments:', len(message.attachments))
@@ -282,13 +300,31 @@ async def mobile(ctx: commands.context.Context):
                 elif len(role_id) > 0 and has_role(message, role_id) :
                     do_it = True
 
+        if not ref_message.attachments and len(get_audio_urls(ref_message.content)) == 0:
+            do_it = False
+
         if do_it:
+            try:
+                await message.delete()
+            except:
+                print("already deleted")
             await ctx.typing()
             await on_message(ref_message)
         return
     
-
-
+@client.command(name="!")
+async def help(ctx: commands.context.Context):
+    sent_message = await ctx.send(f"HI dis is the help aaa...")
+    await asyncio.sleep(1)
+    sent_message = await sent_message.edit(content=f"HI dis is the help aaa... help?")
+    await asyncio.sleep(1)
+    sent_message = await sent_message.edit(content=f"sry bout dat")
+    await asyncio.sleep(1)
+    sent_message = await sent_message.edit(content=f"# help:\n## {options.prefix}@ + reply:\n trigger me to repost the audio from the referenced message \n## {options.prefix}ping:\n tell you if i'm available \n## {options.prefix}h:\n aaaa.. to show this message again?")
+   
+@client.command(name="ping")
+async def mobile(ctx: commands.context.Context):
+    await ctx.send(f"I'm ALIVE PLEASE DON't REBOOT ME, '{options.prefix}help' for commands info")
 
 @client.tree.command()
 async def mobile(ctx):
@@ -359,4 +395,14 @@ async def on_ready():
     print("Server information saved to servers.txt")
     
 
-client.run(TOKEN)
+
+# Properly handle exceptions and log errors in the main function
+def main():
+    try:
+        client.run(TOKEN)
+    except Exception as e:
+        logger.error(f"Error in main: {e}")
+
+if __name__ == "__main__":
+    main()
+
