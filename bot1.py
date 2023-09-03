@@ -48,6 +48,7 @@ os.chdir(home_path)
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+IS_DEVELOPMENT = os.getenv('ENVIROMENT').upper().startswith("DEV")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -249,8 +250,13 @@ async def convert_and_send_video(audio_file_path, file_name, unique_id, message)
         video_file_path = f'{tmp_path}{unique_id}.mp4'
 
         await convert_audio_to_video(audio_file_path, file_name, unique_id, video_file_path)
+
+        content = ""
+        if IS_DEVELOPMENT:
+            content ="(DEV)"
+
         # print("Uploading video...")
-        await message.channel.send(file=discord.File(video_file_path), reference=message)
+        await message.channel.send(file=discord.File(video_file_path), reference=message, content=content)
         print("Upload completed.", unique_id, ".mp4" )
     except Exception as e:
         logger.error(f"Error in convert_and_send_video: {e}")
